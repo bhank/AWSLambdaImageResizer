@@ -1,6 +1,7 @@
 "use strict";
 
 const AWS = require('aws-sdk');
+const sharp = require('sharp');
 
 /*
     To configure, set up CloudFront to point at this lambda's API Gateway URL, and add custom headers X-S3-Bucket and (optionally) X-S3-Region and X-S3-Root (with trailing slash, not leading!).
@@ -53,8 +54,20 @@ function returnResponse(content, contentType, callback) {
 function resizeAndContinue(content, resizeWidth, contentType, callback) {
     try {
         console.log('resizeAndContinue:', arguments);
-        // TODO: resize...
-        returnResponse(content, contentType, callback);
+        const width = +resizeWidth;
+        if(width > 0 && width < 10000) {
+            sharp(content)
+                .resize(width)
+                .toBuffer((err, buffer, info) => {
+                    if(err) {
+                        returnErrorResponse(err, callback);
+                    } else {
+                        returnResponse(buffer, contentType, callback);
+                    }
+                });
+        } else {
+            returnResponse(content, contentType, callback);
+        }
     } catch (errorMessage) {
         returnErrorResponse(errorMessage, callback);
     }
