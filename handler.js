@@ -3,58 +3,72 @@
 const AWS = require('aws-sdk');
 const sharp = require('sharp');
 
-/*
-    To configure, set up CloudFront to point at this lambda's API Gateway URL, and add custom headers X-S3-Bucket and (optionally) X-S3-Region and X-S3-Root (with trailing slash, not leading!).
-*/
+// You can set these config items as environment variables on the Lambda.
+// If you set the value to "HTTPHEADER", it will instead take the value from an X-[config key] HTTP header passed to the Lambda's API Gateway (headers can be set in CloudFront).
+const configKeys = [
+    'S3BUCKET',          // Required: name of the s3 bucket
+    'S3ROOT',            // Optional: a path, with trailing slash and not leading, to be prepended to the path from the URL
+    'S3REGION',          // Optional: region of the s3 bucket, if different from that of the Lambda
+    'S3ACCESSKEYID',     // Optional: an Access Key ID with access to the s3 bucket, if the Lambda's account does not have access
+    'S3SECRETACCESSKEY', // Optional: a Secret Access Key with access to the s3 bucket, if the Lambda's account does not have access
+    'CACHEMAXAGE',       // Optional: if specified, adds a Cache-Control header with max-age set to this number of seconds
+];
 
 module.exports.handler = (event, context, callback) => {
     //console.log('handler:', arguments);
-
     try {
-        const { path: originalPath, headers: { 'X-S3-Bucket': bucket, 'X-S3-Root': root, 'X-S3-Region': region } } = event;
         const regex = /^(?:\/w(\d+))?\/(.*\.(.+?))$/;
-        const [,resizeWidth,path,extension] = originalPath.match(regex);
+        const [,resizeWidth,path,extension] = event.path.match(regex);
         const contentType = getContentType(extension);
-        const key = decodeURI(root + path); // TODO: test with weird chars to see if any encoding/decoding is necessary. Lambda rejects URLs with [] brackets, so I'll need to encode those, I guess, and decode here. Ugly.
 
-        getFileFromS3AndContinue(bucket, region, key, resizeWidth, contentType, callback);
+        const config = configKeys.reduce((accum, configKey) => (
+            {
+                ...accum,
+                [configKey]: process.env[configKey] == 'HTTPHEADER' ? event.headers['X-' + configKey] : process.env[configKey]
+            }
+        ), { contentType, resizeWidth });
+        config.key = decodeURI(config.S3ROOT + path); // Lambda rejects URLs with [] brackets, so I'll need to encode those, I guess, and decode here. Ugly.
+
+        getFileFromS3AndContinue(config, callback);
     } catch (errorMessage) {
         returnErrorResponse(errorMessage, callback);
     }
 };	
 
 function returnErrorResponse(errorMessage, callback) {
-        console.log(errorMessage);
+    //console.log(errorMessage);
 
-        const response = {
-            statusCode: 400,
-            body: 'Error: ' + JSON.stringify(errorMessage)
-        };
+    const response = {
+        statusCode: 400,
+        body: 'Error: ' + JSON.stringify(errorMessage)
+    };
 
-        callback(null, response);
+    callback(null, response);
 }
 
-function returnResponse(content, contentType, callback) {
+function returnResponse(content, config, callback) {
     try {
         const response = {
             statusCode: 200,
             headers: {
-                "Content-Type": contentType
+                "Content-Type": config.contentType
             },
             body: content.toString("base64"),
             isBase64Encoded: true
         };
+        if(config.CACHEMAXAGE) {
+            response.headers['Cache-Control'] = 'max-age=' + config.CACHEMAXAGE;
+        }
         callback(null, response);
     } catch (errorMessage) {
         returnErrorResponse(errorMessage, callback);
     }
-    
 }
 
-function resizeAndContinue(content, resizeWidth, contentType, callback) {
+function resizeAndContinue(content, config, callback) {
     try {
-        console.log('resizeAndContinue:', arguments);
-        const width = +resizeWidth;
+        //console.log('resizeAndContinue:', arguments);
+        const width = +config.resizeWidth;
         if(width > 0 && width < 10000) {
             sharp(content)
                 .resize(width)
@@ -62,38 +76,33 @@ function resizeAndContinue(content, resizeWidth, contentType, callback) {
                     if(err) {
                         returnErrorResponse(err, callback);
                     } else {
-                        returnResponse(buffer, contentType, callback);
+                        returnResponse(buffer, config, callback);
                     }
                 });
         } else {
-            returnResponse(content, contentType, callback);
+            returnResponse(content, config, callback);
         }
     } catch (errorMessage) {
         returnErrorResponse(errorMessage, callback);
     }
-    
 }
 
-function getFileFromS3AndContinue(Bucket, Region, Key, resizeWidth, contentType, callback) {
+function getFileFromS3AndContinue(config, callback) {
     try {
-        console.log('getFileFromS3AndContinue:', arguments);
-        const opts = {};
-
-        // Optionally provide credentials in the Lambda environment config, in case the Lambda account doesn't have access to the S3 bucket.
-        opts.accessKeyId = process.env.S3KEY;
-        opts.secretAccessKey = process.env.S3SECRET;
-
-        if(Region) {
-            opts.region = Region;
-        }
+        //console.log('getFileFromS3AndContinue:', arguments);
+        const opts = {
+            accessKeyId: config.S3ACCESSKEYID,
+            secretAccessKey: config.S3SECRETACCESSKEY,
+            region: config.REGION
+        };
 
         var s3 = new AWS.S3(opts);
-        s3.getObject({Bucket, Key}, (err, result) => {
-            console.log('getObject:', err, result);
+        s3.getObject({Bucket: config.S3BUCKET, Key: config.key}, (err, result) => {
+            //console.log('getObject:', err, result);
             if(err) {
                 returnErrorResponse(err, callback);
             } else {
-                resizeAndContinue(result.Body, resizeWidth, contentType, callback);
+                resizeAndContinue(result.Body, config, callback);
             }
         });
     } catch (errorMessage) {
