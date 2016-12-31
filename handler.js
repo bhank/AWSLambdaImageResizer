@@ -12,10 +12,11 @@ const configKeys = [
     'S3ACCESSKEYID',     // Optional: an Access Key ID with access to the s3 bucket, if the Lambda's account does not have access
     'S3SECRETACCESSKEY', // Optional: a Secret Access Key with access to the s3 bucket, if the Lambda's account does not have access
     'CACHEMAXAGE',       // Optional: if specified, adds a Cache-Control header with max-age set to this number of seconds
+    'DEBUG'              // Optional: if set, logs function calls to console
 ];
 
 module.exports.handler = (event, context, callback) => {
-    //console.log('handler:', arguments);
+    if(process.env.DEBUG) { console.log('handler:', arguments); }
     try {
         const regex = /^(?:\/w(\d+))?\/(.*\.(.+?))$/;
         const [,resizeWidth,path,extension] = event.path.match(regex);
@@ -36,8 +37,6 @@ module.exports.handler = (event, context, callback) => {
 };	
 
 function returnErrorResponse(errorMessage, callback) {
-    //console.log(errorMessage);
-
     const response = {
         statusCode: 400,
         body: 'Error: ' + JSON.stringify(errorMessage)
@@ -67,7 +66,7 @@ function returnResponse(content, config, callback) {
 
 function resizeAndContinue(content, config, callback) {
     try {
-        //console.log('resizeAndContinue:', arguments);
+        if(config.DEBUG) { console.log('resizeAndContinue:', arguments); }
         const width = +config.resizeWidth;
         if(width > 0 && width < 10000) {
             sharp(content)
@@ -89,7 +88,7 @@ function resizeAndContinue(content, config, callback) {
 
 function getFileFromS3AndContinue(config, callback) {
     try {
-        //console.log('getFileFromS3AndContinue:', arguments);
+        if(config.DEBUG) { console.log('getFileFromS3AndContinue:', arguments); }
         const opts = {
             accessKeyId: config.S3ACCESSKEYID,
             secretAccessKey: config.S3SECRETACCESSKEY,
@@ -98,7 +97,7 @@ function getFileFromS3AndContinue(config, callback) {
 
         var s3 = new AWS.S3(opts);
         s3.getObject({Bucket: config.S3BUCKET, Key: config.key}, (err, result) => {
-            //console.log('getObject:', err, result);
+            if(config.DEBUG) { console.log('getObject:', err, result); }
             if(err) {
                 returnErrorResponse(err, callback);
             } else {
