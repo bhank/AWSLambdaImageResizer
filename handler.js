@@ -47,12 +47,17 @@ function returnErrorResponse(errorMessage, callback) {
 
 function returnResponse(content, config, callback) {
     try {
+        const body = content.toString("base64");
+        const MAX_BASE64_LAMBDA_RESPONSE_SIZE = 4718628; // Based on my testing as of 2016-12-30
+        if(body.length > MAX_BASE64_LAMBDA_RESPONSE_SIZE) {
+            throw `Response body size ${body.length} bytes is greater than the limit of ${MAX_BASE64_LAMBDA_RESPONSE_SIZE} bytes`;
+        }
         const response = {
             statusCode: 200,
             headers: {
                 "Content-Type": config.contentType
             },
-            body: content.toString("base64"),
+            body,
             isBase64Encoded: true
         };
         if(config.CACHEMAXAGE) {
