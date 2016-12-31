@@ -18,16 +18,16 @@ const configKeys = [
 module.exports.handler = (event, context, callback) => {
     if(process.env.DEBUG) { console.log('handler:', arguments); }
     try {
-        const regex = /^(?:\/w(\d+))?\/(.*\.(.+?))$/;
-        const [,resizeWidth,path,extension] = event.path.match(regex);
-        const contentType = getContentType(extension);
+        const regex = /^(?:\/w(\d+))?\/(.*?\.(\w{3,4}))(?:\/format=\.(\w{3,4}))?$/;
+        const [,resizeWidth,path,extension,convertedExtension] = event.path.match(regex);
+        const [contentType,targetFormat] = getOutputType(extension, convertedExtension);
 
         const config = configKeys.reduce((accum, configKey) => (
             {
                 ...accum,
                 [configKey]: process.env[configKey] == 'HTTPHEADER' ? event.headers['X-' + configKey] : process.env[configKey]
             }
-        ), { contentType, resizeWidth });
+        ), { contentType, resizeWidth, targetFormat });
         config.key = decodeURI(config.S3ROOT + path); // Lambda rejects URLs with [] brackets, so I'll need to encode those, I guess, and decode here. Ugly.
 
         getFileFromS3AndContinue(config, callback);
@@ -73,10 +73,15 @@ function resizeAndContinue(content, config, callback) {
     try {
         if(config.DEBUG) { console.log('resizeAndContinue:', arguments); }
         const width = +config.resizeWidth;
-        if(width > 0 && width < 10000) {
-            sharp(content)
-                .resize(width)
-                .toBuffer((err, buffer, info) => {
+        if(width > 0 && width < 10000 || config.convertedFormat) {
+            const image = sharp(content);
+            if(width > 0 && width < 10000) {
+                image.resize(width);
+            };
+            if(config.targetFormat) {
+                image.toFormat(config.targetFormat);
+            }
+            image.toBuffer((err, buffer, info) => {
                     if(err) {
                         returnErrorResponse(err, callback);
                     } else {
@@ -112,6 +117,19 @@ function getFileFromS3AndContinue(config, callback) {
     } catch (errorMessage) {
         returnErrorResponse(errorMessage, callback);
     }
+}
+
+function getOutputType(extension,convertedExtension) {
+    if(convertedExtension) {
+        const convertedContentType = getContentType(convertedExtension);
+        switch(convertedContentType) {
+            case 'image/png':
+                return [convertedContentType,'png'];
+            case 'image/jpeg':
+                return [convertedContentType,'jpeg'];
+        }
+    }
+    return [getContentType(extension)];
 }
 
 function getContentType(extension) {
