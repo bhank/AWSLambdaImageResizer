@@ -22,9 +22,9 @@ If you run it behind a CloudFront instance, you can set CACHEMAXAGE in order to 
 
 Keep in mind that any variable set to HTTPHEADER is open for manipulation by end users if they can hit the Lambda's API Gateway directly.
 
-To resize an image, prefix the URL path with /w123, where 123 is the desired width. To convert to a different file format, append /format=.png or /format=.jpg to the URL.
+To resize an image, prefix the URL path with /w123, where 123 is the desired width. To convert to a different file format, append /.png or /.jpg to the URL.
 
-Requesting an API Gateway URL like `https://1234fake.execute-api.amazonaws.com/prod/w640/images/sample/home.jpg/format=.png` with the HTTP headers `X-S3BUCKET: imgmain` and `X-S3ROOT: testimages/main/` (assuming the S3BUCKET and S3ROOT environment variables are set to HTTPHEADER) would attempt to load `testimages/main/images/sample/home.jpg` from the `imgmain` bucket (in the same region as the Lambda), resize it to a width of 640, convert it to PNG, and serve it up.
+Requesting an API Gateway URL like `https://1234fake.execute-api.amazonaws.com/prod/w640/images/sample/home.jpg/.png` with the HTTP headers `X-S3BUCKET: imgmain` and `X-S3ROOT: testimages/main/` (assuming the S3BUCKET and S3ROOT environment variables are set to HTTPHEADER) would attempt to load `testimages/main/images/sample/home.jpg` from the `imgmain` bucket (in the same region as the Lambda), resize it to a width of 640, convert it to PNG, and serve it up.
 
 When creating an API gateway for the Lambda function, check the box to "Configure as [proxy resource](https://docs.aws.amazon.com/console/apigateway/proxy-resource)", so it will capture all URL paths. In the ANY method's Integration Request, check the box to "Use Lambda Proxy Integration". And in the gateway's Binary Support section, add `*/*`.
 
