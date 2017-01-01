@@ -120,7 +120,7 @@ function getFileFromS3AndContinue(config, callback) {
 }
 
 function getOutputType(extension,convertedExtension) {
-    if(convertedExtension) {
+    if(convertedExtension && convertedExtension != extension) {
         const convertedContentType = getContentType(convertedExtension);
         switch(convertedContentType) {
             case 'image/png':
