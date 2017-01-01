@@ -18,7 +18,7 @@ const configKeys = [
 module.exports.handler = (event, context, callback) => {
     if(process.env.DEBUG) { console.log('handler:', arguments); }
     try {
-        const regex = /^(?:\/w(\d+))?\/(.*?\.(\w{3,4}))(?:\/format=\.(\w{3,4}))?$/;
+        const regex = /^(?:\/w(\d+))?\/(.*?\.(\w{3,4}))(?:\/\.(\w{3,4}))?$/;
         const [,resizeWidth,path,extension,convertedExtension] = event.path.match(regex);
         const [contentType,targetFormat] = getOutputType(extension, convertedExtension);
 
