@@ -73,7 +73,7 @@ function resizeAndContinue(content, config, callback) {
     try {
         if(config.DEBUG) { console.log('resizeAndContinue:', arguments); }
         const width = +config.resizeWidth;
-        if(width > 0 && width < 10000 || config.convertedFormat) {
+        if(width > 0 && width < 10000 || config.targetFormat) {
             const image = sharp(content);
             if(width > 0 && width < 10000) {
                 image.resize(width);
