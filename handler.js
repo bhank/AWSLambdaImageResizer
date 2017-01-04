@@ -28,7 +28,7 @@ module.exports.handler = (event, context, callback) => {
                 [configKey]: process.env[configKey] == 'HTTPHEADER' ? event.headers['X-' + configKey] : process.env[configKey]
             }
         ), { contentType, resizeWidth, targetFormat });
-        config.key = decodeURI(config.S3ROOT + path); // Lambda rejects URLs with [] brackets, so I'll need to encode those, I guess, and decode here. Ugly.
+        config.s3key = decodeURI(config.S3ROOT + path); // Lambda rejects URLs with [] brackets, so I'll need to encode those, I guess, and decode here. Ugly.
 
         getFileFromS3AndContinue(config, callback);
     } catch (errorMessage) {
@@ -106,7 +106,7 @@ function getFileFromS3AndContinue(config, callback) {
         };
 
         var s3 = new AWS.S3(opts);
-        s3.getObject({Bucket: config.S3BUCKET, Key: config.key}, (err, result) => {
+        s3.getObject({Bucket: config.S3BUCKET, Key: config.s3key}, (err, result) => {
             if(config.DEBUG) { console.log('getObject:', err, result); }
             if(err) {
                 returnErrorResponse(err, callback);
