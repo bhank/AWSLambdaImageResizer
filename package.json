@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "zip": "zip -j9 dist/lambda.zip dist/index.js && zip -ur9 dist/lambda.zip node_modules/aws-sdk node_modules/sharp ; exit $(($? == 12 ? 0 : $?))"
+  },
   "dependencies": {
     "aws-sdk": "^2.7.19",
     "sharp": "^0.17.0"
