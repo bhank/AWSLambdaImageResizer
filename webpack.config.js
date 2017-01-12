@@ -6,7 +6,7 @@ module.exports = {
     entry: './handler.js',
     output: {
         libraryTarget: 'commonjs2',
-        filename: "./dist/main.js"
+        filename: "./dist/index.js"
     },    
     module: {
         loaders: [
