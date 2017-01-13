@@ -15,7 +15,7 @@ const configKeys = [
     'DEBUG'              // Optional: if set, logs function calls to console
 ];
 
-module.exports.handler = (event, context, callback) => {
+module.exports.handler = function(event, context, callback) {
     if(process.env.DEBUG) { console.log('handler:', arguments); }
     try {
         const regex = /^(?:\/w(\d+))?\/(.*?\.(\w{3,4}))(?:\/\.(\w{3,4}))?$/;
@@ -28,7 +28,7 @@ module.exports.handler = (event, context, callback) => {
                 [configKey]: process.env[configKey] == 'HTTPHEADER' ? event.headers['X-' + configKey] : process.env[configKey]
             }
         ), { contentType, resizeWidth, targetFormat });
-        config.s3key = decodeURI(config.S3ROOT + path); // Lambda rejects URLs with [] brackets, so I'll need to encode those, I guess, and decode here. Ugly.
+        config.s3key = decodeURI((config.S3ROOT || '') + path); // Lambda rejects URLs with [] brackets, so I'll need to encode those, I guess, and decode here. Ugly.
 
         getFileFromS3AndContinue(config, callback);
     } catch (errorMessage) {
@@ -102,7 +102,7 @@ function getFileFromS3AndContinue(config, callback) {
         const opts = {
             accessKeyId: config.S3ACCESSKEYID,
             secretAccessKey: config.S3SECRETACCESSKEY,
-            region: config.REGION
+            region: config.S3REGION
         };
 
         var s3 = new AWS.S3(opts);
